@@ -11,13 +11,13 @@ import pandas as pd
 # ----------------------------
 # User settings
 # ----------------------------
-DIST_PATH = "/Users/aaronlin/Documents/CSAS_2026/data/end_diff_distributions.csv"
+DIST_PATH = "data/derived/end_diff_distributions.csv"
 
 T = 8
 S_MIN, S_MAX = -10, 10
 
 # Monte Carlo trials (posterior draws)
-M = 50000
+M = 5000
 
 # Dirichlet prior strength per category:
 # Jeffreys prior is 0.5; Laplace is 1.0

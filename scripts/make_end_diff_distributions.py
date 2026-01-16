@@ -1,7 +1,7 @@
 import pandas as pd
 
-ENDS2_PATH = "/Users/aaronlin/Documents/CSAS_2026/data/Ends2.csv"
-OUT_PATH = "/Users/aaronlin/Documents/CSAS_2026/data/end_diff_distributions.csv"
+ENDS2_PATH = "data/derived/Ends2.csv"
+OUT_PATH = "data/derived/end_diff_distributions.csv"
 
 KEYS = ["CompetitionID", "SessionID", "GameID", "EndID"]
 

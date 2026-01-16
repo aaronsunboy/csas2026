@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional
 import pandas as pd
 
-DIST_PATH = "/Users/aaronlin/Documents/CSAS_2026/data/end_diff_distributions.csv"
+DIST_PATH = "data/test/end_diff_distributions.csv"
 
 # ----------------------------
 # Model / game assumptions
@@ -181,7 +181,7 @@ def print_policy_slice(Pi: Dict[State, str], T: int, s_min: int, s_max: int):
             row.append(Pi.get(st, "?"))
         print(f"t={t:2d}:", " ".join(f"{a:>2s}" for a in row), f"  (s={s_min}..{s_max})")
 
-def write_value_table(V, Pi, path="/Users/aaronlin/Documents/CSAS_2026/data/dp_win_probabilities.csv"):
+def write_value_table(V, Pi, path="data/derived/dp_win_probabilities.csv"):
     rows = []
     for st, val in V.items():
         rows.append({
@@ -216,7 +216,7 @@ def main():
     print("Optimal action:", Pi[init])
     print("Win probability:", V[init])
     
-    write_value_table(V, Pi, path="dp_win_probabilities.csv")
+    write_value_table(V, Pi, path="data/derived/dp_win_probabilities.csv")
 
 
 if __name__ == "__main__":

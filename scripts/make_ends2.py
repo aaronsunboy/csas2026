@@ -2,9 +2,9 @@ import pandas as pd
 import numpy as np
 import re
 
-GAMES_PATH = "Games.csv"
-ENDS_PATH  = "Ends.csv"
-OUT_PATH   = "Ends2.csv"
+GAMES_PATH = "data/raw/Games.csv"
+ENDS_PATH  = "data/raw/Ends.csv"
+OUT_PATH   = "data/derived/Ends2.csv"
 
 # ----------------------------
 # Helpers
