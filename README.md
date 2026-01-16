@@ -2,16 +2,19 @@
 
 ## Repository Structure
 
-scripts: python scripts
-data/raw: Original provided CSV files
-data/derived: derived datasets
-outputs/posterior_mc: dynamic programming outputs
-outputs/dp_point_estimate: point estimate outputs
-outputs/diagrams: generated figures
+The repo is organized as follows:
+* scripts: python code
+* data
+    * raw: provided CSV files
+    * derived: processed datasets
+* outputs
+    * posterior_mc: dynamic programming outputs
+    * dp_point_estimate: point estimate outputs
+    * diagrams: generated figures
 
 ## How to Run the Code
 
-All commands should be run **from the repository root**.
+All commands should be run **from the repository root** in the following order:
 
 ```bash
 python -u scripts/make_ends2.py
