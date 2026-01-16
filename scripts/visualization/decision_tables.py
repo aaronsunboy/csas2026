@@ -19,7 +19,6 @@ def read_t_by_s_csv(path: Path) -> pd.DataFrame:
     df.columns = [int(c) for c in df.columns]
     df = df.apply(pd.to_numeric, errors="coerce")
 
-    # Drop t=0, restrict s ∈ [-6,6]
     df = df.loc[df.index >= 1, [s for s in df.columns if -6 <= s <= 6]]
 
     df = df.sort_index(ascending=False)

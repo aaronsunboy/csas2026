@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 
 
 def main():
-    # Repo root (script lives in <repo>/scripts/)
     repo_root = Path(__file__).resolve().parents[2]
 
     ends2_path = repo_root / "data" / "derived" / "Ends2.csv"
@@ -28,7 +27,6 @@ def main():
     if missing:
         raise ValueError(f"Ends2.csv missing required columns: {sorted(missing)}")
 
-    # Ensure numeric
     df["EndID"] = pd.to_numeric(df["EndID"], errors="raise").astype(int)
     df["Result"] = pd.to_numeric(df["Result"], errors="coerce").fillna(0).astype(int)
     df["HasHammer"] = pd.to_numeric(df["HasHammer"], errors="raise").astype(int)
@@ -36,7 +34,6 @@ def main():
 
     keys = ["CompetitionID", "SessionID", "GameID", "EndID"]
 
-    # End-level aggregation
     hammer_pts = (
         df.loc[df["HasHammer"] == 1]
         .groupby(keys)["Result"]
@@ -62,10 +59,8 @@ def main():
     end_df["d"] = end_df["hammer_pts"] - end_df["nonhammer_pts"]
     end_df["pp_used"] = end_df["pp_used"].astype(int)
 
-    # Restrict to score differentials in [-6, 6]
     end_df = end_df.loc[(end_df["d"] >= -6) & (end_df["d"] <= 6)]
 
-    # Empirical distributions
     counts_np = end_df.loc[end_df["pp_used"] == 0, "d"].value_counts().sort_index()
     counts_pp = end_df.loc[end_df["pp_used"] == 1, "d"].value_counts().sort_index()
 
@@ -78,7 +73,6 @@ def main():
     if prob_pp.sum() > 0:
         prob_pp /= prob_pp.sum()
 
-    # Plot
     x = np.arange(len(support))
     width = 0.40
 
@@ -98,7 +92,6 @@ def main():
     plt.close(fig)
 
     print(f"Wrote: {out_path}")
-
 
 if __name__ == "__main__":
     main()

@@ -22,14 +22,11 @@ def read_t_by_s_csv(path: Path) -> pd.DataFrame:
     df["t"] = pd.to_numeric(df["t"], errors="raise").astype(int)
     df = df.set_index("t")
 
-    # s columns should be integers encoded as strings
     df.columns = [int(c) for c in df.columns]
     df = df.apply(pd.to_numeric, errors="coerce")
 
-    # Restrict to decision-relevant region: t>=1, s in [-6,6]
     df = df.loc[df.index >= 1, [s for s in df.columns if -6 <= s <= 6]]
 
-    # Display order: t descending (top), s ascending (left->right)
     df = df.sort_index(ascending=False)
     df = df[sorted(df.columns)]
     return df
@@ -63,7 +60,6 @@ def plot_heatmap(
 
 
 def main():
-    # scripts/ is one level under the repo root
     repo_root = Path(__file__).resolve().parents[2]
 
     base_in = repo_root / "outputs" / "posterior_mc" / "you_hammer_bothPP"
@@ -88,7 +84,6 @@ def main():
         vmax=1.0,
     )
 
-    # For SD, we usually let the color scale be automatic.
     plot_heatmap(
         sd_df,
         base_out / "heatmap_you_hammer_bothPP_post_sd_winprob_s-6to6_t1plus.png",

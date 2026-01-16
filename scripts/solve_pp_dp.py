@@ -7,24 +7,13 @@ import pandas as pd
 
 DIST_PATH = "data/test/end_diff_distributions.csv"
 
-# ----------------------------
-# Model / game assumptions
-# ----------------------------
-# d = (hammer points) - (non-hammer points)
-# If YOU have hammer, your score lead s updates as s' = s + d.
-# If OPP has hammer, your score lead updates as s' = s - d.
-#
-# Hammer retention rule (role-based):
-# - If hammer team scores (d > 0), hammer SWITCHES next end.
-# - If blank or steal against hammer (d <= 0), hammer STAYS with same team.
-
 @dataclass(frozen=True)
 class State:
-    t: int          # ends remaining
-    s: int          # your lead (your score - opp score)
-    h: int          # 1 if you have hammer now, 0 if opponent has hammer
-    p_you: int      # 1 if your PP available, else 0
-    p_opp: int      # 1 if opponent PP available, else 0
+    t: int         
+    s: int       
+    h: int         
+    p_you: int     
+    p_opp: int    
 
 def read_distributions(path: str) -> Dict[str, List[Tuple[int, float]]]:
     """
@@ -41,7 +30,6 @@ def read_distributions(path: str) -> Dict[str, List[Tuple[int, float]]]:
                 raise ValueError(f"Unknown Action={action} in {path}")
             dist[action].append((d, p))
 
-    # Basic sanity
     for a, lst in dist.items():
         total = sum(p for _, p in lst)
         if abs(total - 1.0) > 1e-6:
@@ -65,15 +53,13 @@ def next_hammer(h: int, d_hammer_minus_non: int) -> int:
     given current h and d defined as (hammer - non-hammer).
     """
     if h == 1:
-        # You are hammer team now
         if d_hammer_minus_non > 0:
-            return 0  # you scored -> opponent gets hammer
-        return 1      # blank or steal -> you keep hammer
+            return 0  
+        return 1      
     else:
-        # Opponent is hammer team now
         if d_hammer_minus_non > 0:
-            return 1  # opponent scored -> you get hammer
-        return 0      # blank or opponent stolen against -> opponent keeps hammer
+            return 1 
+        return 0    
 
 def allowed_actions(h: int, p_available: int) -> List[str]:
     """
@@ -81,10 +67,8 @@ def allowed_actions(h: int, p_available: int) -> List[str]:
     Otherwise only NP.
     """
     if h == 1:
-        # You to act when you have hammer
         return ["NP", "PP"] if p_available == 1 else ["NP"]
     else:
-        # Opponent acts when they have hammer; we will use their p_opp separately
         return ["NP", "PP"] if p_available == 1 else ["NP"]
 
 def solve_dp(
@@ -98,15 +82,12 @@ def solve_dp(
       V[state] = value (win prob)
       Pi[state] = optimal action when it's that side's turn (your action if h=1, opponent action if h=0 stored for completeness)
     """
-    # Bound score range to keep state space finite:
-    # max_abs_d * T is a safe bound.
     max_abs_d = max(abs(d) for a in dist for d, _ in dist[a])
     Smax = max_abs_d * T
 
     V: Dict[State, float] = {}
     Pi: Dict[State, str] = {}
 
-    # Initialize terminal layer t=0
     for s in range(-Smax, Smax + 1):
         for h in (0, 1):
             for p_you in (0, 1):
@@ -115,7 +96,6 @@ def solve_dp(
                     V[st] = terminal_win_prob(s, tie_value=tie_value)
                     Pi[st] = "TERM"
 
-    # Backward induction
     for t in range(1, T + 1):
         for s in range(-Smax, Smax + 1):
             for h in (0, 1):
@@ -124,7 +104,6 @@ def solve_dp(
                         st = State(t=t, s=s, h=h, p_you=p_you, p_opp=p_opp)
 
                         if h == 1:
-                            # You have hammer: choose action to MAX your win prob
                             acts = allowed_actions(h=1, p_available=p_you)
                             best_val = -1.0
                             best_act = "NP"
@@ -134,7 +113,6 @@ def solve_dp(
                                 for d, prob in dist[a]:
                                     s2 = s + d
                                     if s2 < -Smax or s2 > Smax:
-                                        # Outside bounds shouldn't happen if Smax chosen as above, but guard anyway.
                                         s2 = max(-Smax, min(Smax, s2))
                                     h2 = next_hammer(h=1, d_hammer_minus_non=d)
                                     st2 = State(t=t-1, s=s2, h=h2, p_you=p_you_next, p_opp=p_opp)
@@ -146,7 +124,6 @@ def solve_dp(
                             Pi[st] = best_act
 
                         else:
-                            # Opponent has hammer: opponent chooses action to MIN your win prob
                             acts = allowed_actions(h=0, p_available=p_opp)
                             worst_val = 2.0
                             worst_act = "NP"
@@ -154,7 +131,6 @@ def solve_dp(
                                 p_opp_next = 0 if a == "PP" else p_opp
                                 val = 0.0
                                 for d, prob in dist[a]:
-                                    # Opponent hammer => your lead decreases by d
                                     s2 = s - d
                                     if s2 < -Smax or s2 > Smax:
                                         s2 = max(-Smax, min(Smax, s2))
@@ -202,22 +178,18 @@ def write_value_table(V, Pi, path="data/derived/dp_win_probabilities.csv"):
 def main():
     dist = read_distributions(DIST_PATH)
 
-    # Choose match length (Mixed Doubles often 8 ends; adjust as needed)
     T = 8
 
     V, Pi = solve_dp(T=T, dist=dist, tie_value=0.5)
 
-    # Example: print a policy slice around close games
     print_policy_slice(Pi, T=T, s_min=-3, s_max=3)
 
-    # Example: evaluate initial state: tied game, you have hammer, both PP available
     init = State(t=T, s=0, h=1, p_you=1, p_opp=1)
     print("\nExample initial state:", init)
     print("Optimal action:", Pi[init])
     print("Win probability:", V[init])
     
     write_value_table(V, Pi, path="data/derived/dp_win_probabilities.csv")
-
 
 if __name__ == "__main__":
     main()

@@ -7,27 +7,17 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
 
-
-# ----------------------------
-# User settings
-# ----------------------------
 DIST_PATH = "data/derived/end_diff_distributions.csv"
 
 T = 8
 S_MIN, S_MAX = -10, 10
 
-# Monte Carlo trials (posterior draws)
 M = 50000
 
-# Dirichlet prior strength per category:
-# Jeffreys prior is 0.5; Laplace is 1.0
 ALPHA0 = 0.5
 
-# Tie terminal value if s=0 at t=0
 TIE_VALUE = 0.5
 
-# Regimes to aggregate (h, p_you, p_opp)
-# These match your visualize_dp_tables.py conventions.
 REGIMES = [
     ("you_hammer_bothPP", 1, 1, 1),
     ("you_hammer_youPP_only", 1, 1, 0),
@@ -36,10 +26,6 @@ REGIMES = [
     ("opp_hammer_bothPP", 0, 1, 1),
 ]
 
-
-# ----------------------------
-# DP core (same conceptual model as solve_pp_dp.py)
-# ----------------------------
 @dataclass(frozen=True)
 class State:
     t: int
@@ -62,10 +48,8 @@ def next_hammer(h: int, d_hammer_minus_non: int) -> int:
     d is defined as (hammer team points) - (non-hammer team points) for that end.
     """
     if h == 1:
-        # you are hammer now
         return 0 if d_hammer_minus_non > 0 else 1
     else:
-        # opponent is hammer now
         return 1 if d_hammer_minus_non > 0 else 0
 
 
@@ -80,12 +64,11 @@ def solve_dp(T: int, dist: Dict[str, List[Tuple[int, float]]], tie_value: float)
       - when h=0: opponent chooses action to minimize your win probability
     """
     max_abs_d = max(abs(d) for a in dist for d, _ in dist[a])
-    Smax = max_abs_d * T  # safe bound
+    Smax = max_abs_d * T 
 
     V: Dict[State, float] = {}
     Pi: Dict[State, str] = {}
 
-    # terminal
     for s in range(-Smax, Smax + 1):
         for h in (0, 1):
             for p_you in (0, 1):
@@ -94,7 +77,6 @@ def solve_dp(T: int, dist: Dict[str, List[Tuple[int, float]]], tie_value: float)
                     V[st] = terminal_win_prob(s, tie_value)
                     Pi[st] = "TERM"
 
-    # backward induction
     for t in range(1, T + 1):
         for s in range(-Smax, Smax + 1):
             for h in (0, 1):
@@ -111,7 +93,6 @@ def solve_dp(T: int, dist: Dict[str, List[Tuple[int, float]]], tie_value: float)
                                 val = 0.0
                                 for d, prob in dist[a]:
                                     s2 = s + d
-                                    # s2 is always within [-Smax,Smax] by construction, but guard anyway
                                     if s2 < -Smax:
                                         s2 = -Smax
                                     elif s2 > Smax:
@@ -126,7 +107,6 @@ def solve_dp(T: int, dist: Dict[str, List[Tuple[int, float]]], tie_value: float)
                             Pi[st] = best_act
 
                         else:
-                            # opponent has hammer: minimizes your win probability
                             acts = allowed_actions(p_opp)
                             worst_val = 2.0
                             worst_act = "NP"
@@ -134,7 +114,6 @@ def solve_dp(T: int, dist: Dict[str, List[Tuple[int, float]]], tie_value: float)
                                 p_opp_next = 0 if a == "PP" else p_opp
                                 val = 0.0
                                 for d, prob in dist[a]:
-                                    # opponent hammer: your lead decreases by d
                                     s2 = s - d
                                     if s2 < -Smax:
                                         s2 = -Smax
@@ -151,10 +130,6 @@ def solve_dp(T: int, dist: Dict[str, List[Tuple[int, float]]], tie_value: float)
 
     return V, Pi
 
-
-# ----------------------------
-# Posterior sampling from end_diff_distributions.csv
-# ----------------------------
 def read_counts(path: str) -> Tuple[List[int], np.ndarray, np.ndarray]:
     """
     Returns:
@@ -176,7 +151,6 @@ def read_counts(path: str) -> Tuple[List[int], np.ndarray, np.ndarray]:
         if required not in rows[0]:
             raise ValueError(f"{path} must contain column '{required}'. Found columns: {list(rows[0].keys())}")
 
-    # Collect support
     d_all = sorted({int(r["d"]) for r in rows})
     idx = {d: i for i, d in enumerate(d_all)}
 
@@ -217,10 +191,6 @@ def sample_dist(rng: np.random.Generator, d_support: List[int], counts_np: np.nd
     }
     return dist
 
-
-# ----------------------------
-# Online aggregation over (t,s) tables for chosen regimes
-# ----------------------------
 def init_aggregators() -> Dict[str, Dict[str, np.ndarray]]:
     """
     Returns dict regime_name -> dict of accumulators:
@@ -249,7 +219,6 @@ def update_aggregators(aggs: Dict[str, Dict[str, np.ndarray]], V: Dict[State, fl
                 v = V.get(st)
                 a = Pi.get(st)
                 if v is None or a is None:
-                    # Should not happen if score bounds cover s window; but keep safe.
                     continue
                 A["sumV"][t, j] += v
                 A["sumV2"][t, j] += v * v
@@ -261,7 +230,6 @@ def tables_to_csv(name: str, table: np.ndarray, out_path: str):
     """
     Writes a t-by-s table to CSV with rows t=T..0 and columns s=S_MIN..S_MAX.
     """
-    # Arrange as DataFrame with t descending for readability (matches your other tables)
     df = pd.DataFrame(
         table,
         index=list(range(0, T + 1)),
@@ -278,7 +246,6 @@ def main():
 
     d_support, counts_np, counts_pp = read_counts(DIST_PATH)
 
-    # Online aggregators
     aggs = init_aggregators()
 
     for m in range(1, M + 1):
@@ -286,15 +253,12 @@ def main():
         V, Pi = solve_dp(T=T, dist=dist, tie_value=TIE_VALUE)
         update_aggregators(aggs, V, Pi)
 
-        # Lightweight progress
         if m % 500 == 0:
             print(f"Completed {m}/{M} posterior draws")
 
-    # Finalize and write out tables
     for (name, _, _, _) in REGIMES:
         A = aggs[name]
         n = A["n"]
-        # Avoid divide-by-zero (should not occur)
         n_safe = np.where(n == 0, 1.0, n)
 
         mean = A["sumV"] / n_safe
@@ -303,7 +267,6 @@ def main():
         sd = np.sqrt(var)
         p_pp_opt = A["countPP"] / n_safe
 
-        # Round for readability
         mean_r = np.round(mean, 3)
         sd_r = np.round(sd, 3)
         ppp_r = np.round(p_pp_opt, 3)
@@ -312,16 +275,14 @@ def main():
         tables_to_csv(name, sd_r, f"{name}_post_sd_winprob_t_by_s.csv")
         tables_to_csv(name, ppp_r, f"{name}_post_prob_PP_optimal_t_by_s.csv")
 
-    # Example: show the initial state summary for the key regime
     key = "you_hammer_bothPP"
-    j0 = 0 - S_MIN  # s=0 column index
+    j0 = 0 - S_MIN
     t0 = T
     mean0 = aggs[key]["sumV"][t0, j0] / aggs[key]["n"][t0, j0]
     ppp0 = aggs[key]["countPP"][t0, j0] / aggs[key]["n"][t0, j0]
     print("\nKey initial state (t=8, s=0, you hammer, both PP available):")
     print(f"Posterior mean win prob: {mean0:.3f}")
     print(f"Posterior Pr(PP optimal): {ppp0:.3f}")
-
 
 if __name__ == "__main__":
     main()
